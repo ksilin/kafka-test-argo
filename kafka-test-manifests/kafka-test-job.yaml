@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-test
+  namespace: confluent
+spec:
+  ttlSecondsAfterFinished: 86400  # Keep job for 1 day after completion
+  template:
+    spec:
+      containers:
+      - name: kafka-test
+        image: ghcr.io/ksilin/kafka-autotest:0.0.1
+        args:
+        - "-c"
+        - "/etc/kafka/client.properties"
+        - "-t"
+        - "test-topic-$(date +%s)"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/kafka
+        - name: truststore-volume
+          mountPath: /etc/kafka/security
+      volumes:
+      - name: config-volume
+        configMap:
+          name: kafka-client-properties
+      - name: truststore-volume
+        secret:
+          secretName: kafka-truststore
+      restartPolicy: Never
+  backoffLimit: 2
