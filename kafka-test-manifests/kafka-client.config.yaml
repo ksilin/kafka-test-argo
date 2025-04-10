@@ -6,11 +6,5 @@ metadata:
 data:
   client.properties: |
     bootstrap.servers=kafka-0.kafka.confluent.svc.cluster.local:9092
-    security.protocol=SASL_SSL
-    sasl.mechanism=PLAIN
-    sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username="kafka" password="kafka-secret";
-    ssl.endpoint.identification.algorithm=
-    ssl.truststore.type=PKCS12
-    ssl.truststore.location=/etc/kafka/security/truststore.p12
     group.id=kafka-validation-group
     client.id=kafka-validation-client
