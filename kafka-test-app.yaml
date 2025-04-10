@@ -6,12 +6,12 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://your-git-repo-url.git
+    repoURL: https://github.com/1123/kafka-test-argo
     targetRevision: HEAD
     path: kafka-test-manifests
   destination:
     server: https://kubernetes.default.svc
-    namespace: kafka-test
+    namespace: confluent
   syncPolicy:
     automated:
       prune: true
