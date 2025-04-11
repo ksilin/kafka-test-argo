@@ -113,10 +113,10 @@ run_producer_test() {
   fi
   
   log "Producer test completed"
-  # Extract key metrics from output
-  export PRODUCER_THROUGHPUT=$(grep -oP "records/sec \(\d+\.\d+\)" /tmp/producer-metrics.txt | grep -oP "\d+\.\d+")
-  export PRODUCER_AVG_LATENCY=$(grep -oP "ms avg latency" /tmp/producer-metrics.txt | grep -oP "\d+\.\d+")
-  export PRODUCER_MAX_LATENCY=$(grep -oP "ms max latency" /tmp/producer-metrics.txt | grep -oP "\d+\.\d+")
+  
+  export PRODUCER_THROUGHPUT=$(grep -o '[0-9]\+\.[0-9]\+ records/sec' /tmp/producer-metrics.txt | grep -o '[0-9]\+\.[0-9]\+')
+  export PRODUCER_AVG_LATENCY=$(grep -o '[0-9]\+\.[0-9]\+ ms avg latency' /tmp/producer-metrics.txt | grep -o '[0-9]\+\.[0-9]\+')
+  export PRODUCER_MAX_LATENCY=$(grep -o '[0-9]\+\.[0-9]\+ ms max latency' /tmp/producer-metrics.txt | grep -o '[0-9]\+\.[0-9]\+')
   
   log "Producer throughput: ${PRODUCER_THROUGHPUT} records/sec"
   log "Producer avg latency: ${PRODUCER_AVG_LATENCY} ms"
@@ -139,9 +139,10 @@ run_consumer_test() {
   fi
   
   log "Consumer test completed"
-  # Extract key metrics from output
-  export CONSUMER_THROUGHPUT=$(grep -oP "nMsg/sec: \d+\.\d+" /tmp/consumer-metrics.txt | grep -oP "\d+\.\d+")
-  export CONSUMER_MB_SEC=$(grep -oP "MB/sec: \d+\.\d+" /tmp/consumer-metrics.txt | grep -oP "\d+\.\d+")
+  
+  # Extract key metrics from output - skip the header line and extract from the data line
+  export CONSUMER_THROUGHPUT=$(tail -n 1 /tmp/consumer-metrics.txt | cut -d',' -f6 | tr -d ' ')
+  export CONSUMER_MB_SEC=$(tail -n 1 /tmp/consumer-metrics.txt | cut -d',' -f4 | tr -d ' ')
   
   log "Consumer throughput: ${CONSUMER_THROUGHPUT} records/sec"
   log "Consumer bandwidth: ${CONSUMER_MB_SEC} MB/sec"
