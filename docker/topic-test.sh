@@ -36,7 +36,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Check for required parameters
-if [[ -z "$CONFIG_FILE" || -z "$TOPIC_NAME" ]]; then
+if [[ -z "$CONFIG_FILE" ]]; then
     echo "Error: Missing required parameters."
     show_usage
 fi
