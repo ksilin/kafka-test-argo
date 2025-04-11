@@ -12,12 +12,12 @@ spec:
         image: benediktubuntudev.azurecr.io/kafka_e2e_test:v0.1
         args:
         - "-c"
-        - "/etc/kafka/client.properties"
+        - "/tmp/client.properties"
         - "-t"
         - "test-topic-$(date +%s)"
         volumeMounts:
         - name: config-volume
-          mountPath: /etc/kafka
+          mountPath: /tmp
       volumes:
       - name: config-volume
         configMap:
