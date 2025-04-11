@@ -16,6 +16,8 @@ spec:
         volumeMounts:
         - name: config-volume
           mountPath: /tmp/config
+      imagePullSecrets:
+      - name: acr-pull-secret
       volumes:
       - name: config-volume
         configMap:
