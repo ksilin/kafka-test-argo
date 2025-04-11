@@ -11,6 +11,7 @@ function show_usage {
     exit 1
 }
 
+OUTPUT_DIR="/tmp"
 CONFIG_FILE=""
 TOPIC_NAME=""
 

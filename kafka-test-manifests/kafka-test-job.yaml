@@ -9,13 +9,13 @@ spec:
     spec:
       containers:
       - name: kafka-test
-        image: benediktubuntudev.azurecr.io/kafka_e2e_test:v0.5
+        image: benediktubuntudev.azurecr.io/kafka_e2e_test:v0.6
         args:
         - "-c"
-        - "/tmp/client.properties"
+        - "/tmp/config/client.properties"
         volumeMounts:
         - name: config-volume
-          mountPath: /tmp
+          mountPath: /tmp/config
       volumes:
       - name: config-volume
         configMap:

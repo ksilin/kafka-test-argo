@@ -1,3 +1,3 @@
 ACR_NAME=benediktubuntudev
-az acr build --registry $ACR_NAME --image kafka_e2e_test:v0.5 --file docker/Dockerfile docker
+az acr build --registry $ACR_NAME --image kafka_e2e_test:v0.6 --file docker/Dockerfile docker
 
