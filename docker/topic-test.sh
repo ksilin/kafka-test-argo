@@ -111,6 +111,8 @@ run_producer_test() {
     log "ERROR: Producer test failed!"
     return 1
   fi
+
+  cat $OUTPUT_DIR/producer-metrics.txt
   
   log "Producer test completed"
   # Extract key metrics from output
