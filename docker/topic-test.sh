@@ -14,7 +14,6 @@ function show_usage {
 CONFIG_FILE=""
 TOPIC_NAME=""
 
-
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -c|--config)
@@ -105,7 +104,7 @@ run_producer_test() {
     --num-records ${NUM_MESSAGES} \
     --record-size ${MESSAGE_SIZE} \
     --throughput -1 \
-    --producer.config "$CONFIG_FILE" > /tmp/producer-metrics.txt
+    --producer.config "$CONFIG_FILE" > $OUTPUT_DIR/producer-metrics.txt
   
   if [ $? -ne 0 ]; then
     log "ERROR: Producer test failed!"
@@ -114,9 +113,9 @@ run_producer_test() {
   
   log "Producer test completed"
   # Extract key metrics from output
-  export PRODUCER_THROUGHPUT=$(grep -oP "records/sec \(\d+\.\d+\)" /tmp/producer-metrics.txt | grep -oP "\d+\.\d+")
-  export PRODUCER_AVG_LATENCY=$(grep -oP "ms avg latency" /tmp/producer-metrics.txt | grep -oP "\d+\.\d+")
-  export PRODUCER_MAX_LATENCY=$(grep -oP "ms max latency" /tmp/producer-metrics.txt | grep -oP "\d+\.\d+")
+  export PRODUCER_THROUGHPUT=$(grep -oP "records/sec \(\d+\.\d+\)" $OUTPUT_DIR/producer-metrics.txt | grep -oP "\d+\.\d+")
+  export PRODUCER_AVG_LATENCY=$(grep -oP "ms avg latency" $OUTPUT_DIR/producer-metrics.txt | grep -oP "\d+\.\d+")
+  export PRODUCER_MAX_LATENCY=$(grep -oP "ms max latency" $OUTPUT_DIR/producer-metrics.txt | grep -oP "\d+\.\d+")
   
   log "Producer throughput: ${PRODUCER_THROUGHPUT} records/sec"
   log "Producer avg latency: ${PRODUCER_AVG_LATENCY} ms"
@@ -131,7 +130,7 @@ run_consumer_test() {
     --bootstrap-server ${BOOTSTRAP_SERVERS} \
     --consumer.config "$CONFIG_FILE" \
     --topic ${TOPIC_NAME} \
-    --messages ${NUM_MESSAGES} > /tmp/consumer-metrics.txt
+    --messages ${NUM_MESSAGES} > $OUTPUT_DIR/consumer-metrics.txt
   
   if [ $? -ne 0 ]; then
     log "ERROR: Consumer test failed!"
@@ -140,8 +139,8 @@ run_consumer_test() {
   
   log "Consumer test completed"
   # Extract key metrics from output
-  export CONSUMER_THROUGHPUT=$(grep -oP "nMsg/sec: \d+\.\d+" /tmp/consumer-metrics.txt | grep -oP "\d+\.\d+")
-  export CONSUMER_MB_SEC=$(grep -oP "MB/sec: \d+\.\d+" /tmp/consumer-metrics.txt | grep -oP "\d+\.\d+")
+  export CONSUMER_THROUGHPUT=$(grep -oP "nMsg/sec: \d+\.\d+" $OUTPUT_DIR/consumer-metrics.txt | grep -oP "\d+\.\d+")
+  export CONSUMER_MB_SEC=$(grep -oP "MB/sec: \d+\.\d+" $OUTPUT_DIR/consumer-metrics.txt | grep -oP "\d+\.\d+")
   
   log "Consumer throughput: ${CONSUMER_THROUGHPUT} records/sec"
   log "Consumer bandwidth: ${CONSUMER_MB_SEC} MB/sec"
