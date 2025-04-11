@@ -9,7 +9,7 @@ spec:
     spec:
       containers:
       - name: kafka-test
-        image: benediktubuntudev.azurecr.io/kafka_e2e_test:v0.3
+        image: benediktubuntudev.azurecr.io/kafka_e2e_test:v0.4
         args:
         - "-c"
         - "/tmp/client.properties"
