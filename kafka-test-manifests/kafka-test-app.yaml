@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://your-git-repo-url.git
+    repoURL: https://github.com/ksilin/kafka-test-argo
     targetRevision: HEAD
     path: kafka-test-manifests
   destination:

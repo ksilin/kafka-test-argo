@@ -1,8 +1,7 @@
 FROM confluentinc/cp-kafka:7.9.0
 
-COPY topic-test.sh /usr/local/bin/kafka-test.sh
-
 USER root
+COPY topic-test.sh /usr/local/bin/kafka-test.sh
 RUN chmod +x /usr/local/bin/kafka-test.sh
 USER appuser
 
