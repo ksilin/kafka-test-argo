@@ -45,7 +45,7 @@ echo "Client options: $CONFIG_FILE"
 cat $CONFIG_FILE
 echo ""
 
-TOPIC_NAME=${TOPIC_NAME:-"validation-test-topic"}
+TOPIC_NAME=${TOPIC_NAME:-"test-topic-$(date +%s)"}
 NUM_MESSAGES=${NUM_MESSAGES:-10000}
 MESSAGE_SIZE=${MESSAGE_SIZE:-1024}
 TOPIC_PARTITIONS=${TOPIC_PARTITIONS:-3}

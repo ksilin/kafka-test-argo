@@ -9,12 +9,10 @@ spec:
     spec:
       containers:
       - name: kafka-test
-        image: benediktubuntudev.azurecr.io/kafka_e2e_test:v0.1
+        image: benediktubuntudev.azurecr.io/kafka_e2e_test:v0.2
         args:
         - "-c"
         - "/tmp/client.properties"
-        - "-t"
-        - "test-topic-$(date +%s)"
         volumeMounts:
         - name: config-volume
           mountPath: /tmp
