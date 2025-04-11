@@ -2,22 +2,30 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: kafka-test
-  namespace: confluent
+  namespace: kafka-test
 spec:
   ttlSecondsAfterFinished: 86400  # Keep job for 1 day after completion
   template:
     spec:
       containers:
       - name: kafka-test
-        image: benediktubuntudev.azurecr.io/kafka_e2e_test:v0.7
+        image: ghcr.io/ksilin/kafka-autotest:0.0.1
+        imagePullPolicy: Always
         args:
         - "-c"
-        - "/tmp/config/client.properties"
+        - "/config/client.properties"
+        - "-t"
+        - "test-topic-$(POD_UID)"
         volumeMounts:
         - name: config-volume
-          mountPath: /tmp/config
-      imagePullSecrets:
-      - name: acr-pull-secret
+          mountPath: /config
+        - name: truststore-volume
+          mountPath: /certs
+        env:
+        - name: POD_UID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.uid
       volumes:
       - name: config-volume
         configMap:

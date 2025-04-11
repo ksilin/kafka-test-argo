@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kafka-test-debug
+  namespace: kafka-test
+spec:
+  containers:
+  - name: kafka-test
+    image: ghcr.io/ksilin/kafka-autotest:0.0.1
+    imagePullPolicy: Always
+    command: ["/bin/bash", "-c", "sleep 3600"]  # override entrypoint, keep pod running for 1 hour
+    volumeMounts:
+    - name: config-volume
+      mountPath: /config
+    - name: truststore-volume
+      mountPath: /certs
+    env:
+    - name: POD_UID
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.uid
+  volumes:
+  - name: config-volume
+    configMap:
+      name: kafka-client-properties
+  - name: truststore-volume
+    secret:
+      secretName: kafka-truststore
+  restartPolicy: Never
