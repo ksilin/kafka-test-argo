@@ -96,8 +96,25 @@ create_topic() {
   log "Topic creation took ${TOPIC_CREATE_TIME}ms"
 }
 
+run_low_throughput_producer_test() {
+  log "This test measures latency under little load"
+  log "This test should run for about 30 seconds"
+
+  kafka-producer-perf-test \
+    --topic ${TOPIC_NAME} \
+    --num-records 3000 \
+    --record-size 1000 \
+    --throughput 100 \
+    --producer.config "$CONFIG_FILE" 
+
+  # TODO: write the output to a file and parse the latency into a variable, which can later be printed 
+}
+
+
 run_producer_test() {
   log "Running producer performance test with ${NUM_MESSAGES} messages of size ${MESSAGE_SIZE} bytes"
+  log "This test is for measuring max throughput. "
+  # TODO: we may want to run this test from more than a single instance. 
   
   kafka-producer-perf-test \
     --topic ${TOPIC_NAME} \
@@ -172,6 +189,7 @@ main() {
   
   # Run tests
   create_topic || return 1
+  run_low_throughput_producer_test || return 1
   run_producer_test || return 1
   run_consumer_test || return 1
   delete_topic || return 1

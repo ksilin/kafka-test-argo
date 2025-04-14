@@ -15,3 +15,4 @@ data:
     ssl.truststore.password=mystorepassword
     group.id=kafka-validation-group
     client.id=kafka-validation-client
+    acks=-1
