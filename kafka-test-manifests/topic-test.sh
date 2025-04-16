@@ -141,8 +141,8 @@ run_consumer_test() {
   log "Consumer test completed"
   
   # Extract key metrics from output - skip the header line and extract from the data line
-  export CONSUMER_THROUGHPUT=$(tail -n 1 /tmp/consumer-metrics.txt | cut -d',' -f6 | tr -d ' ')
-  export CONSUMER_MB_SEC=$(tail -n 1 /tmp/consumer-metrics.txt | cut -d',' -f4 | tr -d ' ')
+  export CONSUMER_THROUGHPUT=$(tail -n +2 /tmp/consumer-metrics.txt | head -n 1 | cut -d',' -f6 | tr -d ' ')
+  export CONSUMER_MB_SEC=$(tail -n +2 /tmp/consumer-metrics.txt | head -n 1 | cut -d',' -f4 | tr -d ' ')
   
   log "Consumer throughput: ${CONSUMER_THROUGHPUT} records/sec"
   log "Consumer bandwidth: ${CONSUMER_MB_SEC} MB/sec"

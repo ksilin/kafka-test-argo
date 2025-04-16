@@ -133,9 +133,8 @@ run_consumer_test() {
     --bootstrap-server "${bootstrap_servers}" \
     --consumer.config "${config_file}" \
     --topic "${topic_name}" \
-    --messages "${num_messages}" > "${output_file} \
-    --print-metrics
-    "
+    --print-metrics \
+    --messages "${num_messages}" > "${output_file}"
   
   if [ $? -ne 0 ]; then
     log "ERROR: Consumer test failed!"
@@ -166,8 +165,8 @@ parse_consumer_metrics() {
   fi
   
   # Extract metrics - these might need adjustment based on the exact output format
-  export CONSUMER_THROUGHPUT=$(tail -n 1 "${output_file}" | cut -d',' -f6 | tr -d ' ')
-  export CONSUMER_MB_SEC=$(tail -n 1 "${output_file}" | cut -d',' -f4 | tr -d ' ')
+  export CONSUMER_THROUGHPUT=$(tail -n +2 "${output_file}" | head -n 1 | cut -d',' -f6 | tr -d ' ')
+  export CONSUMER_MB_SEC=$(tail -n +2 "${output_file}" | head -n 1 | cut -d',' -f4 | tr -d ' ')
   
   # Validate metrics
   if [ -z "${CONSUMER_THROUGHPUT}" ] || [ -z "${CONSUMER_MB_SEC}" ]; then
