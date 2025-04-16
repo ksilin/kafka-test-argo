@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: kafka-test-with-results
+  name: kafka-load-test-with-results
   namespace: kafka-test
 spec:
   ttlSecondsAfterFinished: 86400  # Keep job for 1 day after completion
@@ -19,13 +19,20 @@ spec:
           cd /home/appuser
           
           # Create a summary file
-          SUMMARY_FILE="/results/test_summary.txt"
+          SUMMARY_FILE="/results/load_test_summary.txt"
           touch $SUMMARY_FILE
           
           # Run the test script and capture output
-          echo "Running Kafka validation test..." | tee -a $SUMMARY_FILE
+          echo "Running Kafka load test..." | tee -a $SUMMARY_FILE
           echo "=======================================" | tee -a $SUMMARY_FILE
-          /usr/local/bin/kafka-test.sh --mode validation --config /config/client.properties --topic test-topic-$POD_UID --verbose | tee -a $SUMMARY_FILE
+          /usr/local/bin/kafka-test.sh --mode load \
+            --config /config/client.properties \
+            --topic load-test-$POD_UID \
+            --producers 3 \
+            --steps 4 \
+            --latency 2000 \
+            --max-messages 1000000 \
+            --verbose | tee -a $SUMMARY_FILE
           
           # Find results directory
           RESULTS_DIRS=$(find /home/appuser -type d -name "kafka_test_*" | sort -r | head -1)
@@ -33,8 +40,12 @@ spec:
           echo "Test results found in: $RESULTS_DIRS" | tee -a $SUMMARY_FILE
           echo "Copying results to /results directory..." | tee -a $SUMMARY_FILE
           
+          # Create subdirectories for each producer output
+          mkdir -p /results/producer_outputs
+          
           # Copy result files to the /results directory
-          find "$RESULTS_DIRS" -type f -exec cp -v {} /results/ \; | tee -a $SUMMARY_FILE
+          find "$RESULTS_DIRS" -type f -name "*.csv" -exec cp -v {} /results/ \; | tee -a $SUMMARY_FILE
+          find "$RESULTS_DIRS" -type f -name "producer_*.txt" -exec cp -v {} /results/producer_outputs/ \; | tee -a $SUMMARY_FILE
           
           # Copy any other txt/csv files in the current directory
           find /home/appuser -maxdepth 1 -name "*.txt" -o -name "*.csv" -exec cp -v {} /results/ \; | tee -a $SUMMARY_FILE
@@ -44,10 +55,13 @@ spec:
           echo "Files available in /results:" | tee -a $SUMMARY_FILE
           ls -la /results | tee -a $SUMMARY_FILE
           
-          # For each result file, add a preview to the summary
+          echo "Producer output files:" | tee -a $SUMMARY_FILE
+          ls -la /results/producer_outputs | tee -a $SUMMARY_FILE
+          
+          # For each CSV file, add a preview to the summary
           echo "=======================================" | tee -a $SUMMARY_FILE
-          echo "Result file previews:" | tee -a $SUMMARY_FILE
-          for file in $(find /results -type f -name "*.txt" -o -name "*.csv"); do
+          echo "CSV Results:" | tee -a $SUMMARY_FILE
+          for file in $(find /results -maxdepth 1 -name "*.csv"); do
             echo "" | tee -a $SUMMARY_FILE
             echo "File: $file" | tee -a $SUMMARY_FILE
             echo "-------------------" | tee -a $SUMMARY_FILE
@@ -58,7 +72,7 @@ spec:
           # Keep container running for result inspection
           echo "Test completed. Container will stay alive for 1 hour for result inspection."
           echo "Access results with: kubectl exec -it $(hostname) -n kafka-test -- ls -la /results"
-          echo "View summary with: kubectl exec -it $(hostname) -n kafka-test -- cat /results/test_summary.txt"
+          echo "View summary with: kubectl exec -it $(hostname) -n kafka-test -- cat /results/load_test_summary.txt"
           sleep 3600
         volumeMounts:
         - name: config-volume
