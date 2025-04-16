@@ -1,92 +1,66 @@
-# kafka-test-argo
+# Kafka Test Argo
 
-Automated smoke, perf & load tests for a Kafka deployment. 
+This project provides modular scripts for automated validation, performance, and load testing of Kafka deployments. It supports both local testing and Kubernetes deployment via Argo CD.
 
+## Project Structure
 
-## Smoke test
+- `scripts/` - Contains all test scripts
+  - `kafka-test-modular.sh` - Main unified test script supporting validation and load modes
+  - `topic-test-modular.sh` - Simple topic validation script
+  - `kafka-test-modules/` - Modular utility functions
+    - `kafka-test-utils.sh` - Common utilities
+    - `kafka-topic-utils.sh` - Topic management
+    - `kafka-perf-utils.sh` - Performance test functions
+    - `kafka-load-utils.sh` - Load testing functions
+    - `kafka-report-utils.sh` - Report generation
 
+- `kafka-test-manifests/` - Kubernetes manifests for deploying tests
+  - `Dockerfile` - Container image with modular scripts
+  - Various job definitions for different test types
+  - ConfigMaps and volume configurations
 
-### does producer work
+## Quick Start
 
-```sh
-seq 5 | kafka-console-producer --topic demotopic --broker-list kafka.confluent.svc.cluster.local:9071 --producer.config /tmp/kafka.properties
-```
+### Running Tests Locally
 
-
-### does consumer work? 
-
-```sh
-kafka-console-consumer --topic demotopic3 --bootstrap-server kafka.confluent.svc.cluster.local:9071 --consumer.config /tmp/kafka.properties --from-beginning
-```
-
-### does producer-pref-test work
-
-```sh
-kafka-producer-perf-test --num-records 1000 --record-size 100 --throughput -1 --topic demotopic3 --producer.config /tmp/kafka.properties
-```
-
-### does the test script work? 
-
-
-
-
-## load test
-
-Start with 1000 messages. 
-
-
-
-
-### Basic Single-Instance Test
+#### Basic Validation Test
 
 ```sh
-./kafka-load-test.sh -c client.properties -t load-test-topic
+./scripts/kafka-test-modular.sh --mode validation --config client.properties --topic validation-test-topic
 ```
 
-This will run a test with default settings: 5 steps of increasing load with 1 producer, stopping when average latency exceeds 100ms.
-
-### Advanced Test with Multiple Producers
+#### Load Test with Multiple Producers
 
 ```sh
-./kafka-load-test.sh -c client.properties -t load-test-topic -p 4 -s 8 -l 150 -m 2000000
+./scripts/kafka-test-modular.sh --mode load --config client.properties --topic load-test-topic --producers 4 --steps 5 --latency 100
 ```
 
-This runs a test with 4 producer instances, 8 load steps, a higher latency threshold of 150ms, and up to 2 million messages per producer in the final step.
-
-### Understanding the Results
-
-The script creates a `load_test_results_[timestamp]` directory with:
-
-CSV files recording latency, throughput, and other metrics for each step
-
-### Text reports summarizing the findings
-
-In multi-instance mode, a master report comparing results across different producer counts
-
-
-
-## misc
-
-### testing scripts and configs from local machine
-
-```
-k port-forward service/kafka -n confluent 9071:9071
-```
+### Running Tests in Kubernetes
 
 ```sh
-export PATH=$PATH:/Users/ksilin/Code/demos/confluent-7.4.0/bin
+# Deploy the validation test job
+kubectl apply -f kafka-test-manifests/kafka-test-job-modular.yaml
+
+# Deploy the load test job
+kubectl apply -f kafka-test-manifests/kafka-load-test-job.yaml
+
+# Deploy the job that keeps results accessible
+kubectl apply -f kafka-test-manifests/kafka-test-job-results-fixed.yaml
 ```
 
+## Testing Locally
+
+For local testing, you may need to set up port forwarding to access your Kafka cluster:
+
 ```sh
+# Port forward to Kafka service
+kubectl port-forward service/kafka -n confluent 9071:9071
+
+# Ensure Kafka CLI tools are in your path
+export PATH=$PATH:/path/to/confluent/bin
+
+# Test connection
 kafka-topics --bootstrap-server localhost:9071 --list --command-config ./gke-client.config.local.props
 ```
 
-you might also need to modify your `/etc/hosts` 
-
-
-
-### ArgoCD on GKE password
-
-```
-LlQHcV54zUsHHjGm
-```
+You might also need to modify your `/etc/hosts` file for domain name resolution.
