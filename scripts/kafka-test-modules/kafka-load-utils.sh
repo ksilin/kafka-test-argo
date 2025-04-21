@@ -6,6 +6,7 @@
 SCRIPT_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 source "${SCRIPT_DIR}/kafka-test-utils.sh"
 source "${SCRIPT_DIR}/kafka-perf-utils.sh"
+source "${SCRIPT_DIR}/kafka-broker-monitor.sh"
 
 # Calculate number of messages for a step in load testing
 # Arguments:
@@ -200,6 +201,8 @@ collect_producer_metrics() {
 #   $6: Number of producers (default: 1)
 #   $7: Latency threshold (default: 100)
 #   $8: Maximum messages per producer (default: 1000000)
+#   $9: Metrics endpoint (optional, default: none)
+#   $10: High-load config (true/false, default: false)
 # Returns:
 #   0 on success, 1 on failure
 run_multi_step_test() {
@@ -211,9 +214,29 @@ run_multi_step_test() {
   local num_producers="${6:-1}"
   local latency_threshold="${7:-100}"
   local max_messages="${8:-1000000}"
+  local metrics_endpoint="${9:-none}"
+  local high_load_config="${10:-false}"
   
   log "Starting multi-step load test with $num_steps steps and $num_producers producer(s)"
   log "Results will be saved to $results_dir"
+  
+  # Export bootstrap servers for broker monitoring
+  export BOOTSTRAP_SERVERS="$bootstrap_servers"
+  
+  # Initialize broker monitoring if metrics endpoint is provided
+  if [ "$metrics_endpoint" != "none" ]; then
+    init_broker_monitoring "$metrics_endpoint" 10
+    start_broker_monitoring
+  fi
+  
+  # Use high-load client config if requested
+  local test_config_file="$config_file"
+  if [ "$high_load_config" = "true" ]; then
+    local high_load_config_file="${results_dir}/high_load_client.properties"
+    generate_high_load_client_config "$config_file" "$high_load_config_file"
+    test_config_file="$high_load_config_file"
+    log "Using high-load client configuration: $test_config_file"
+  fi
   
   # Create results CSV file
   local results_file="${results_dir}/results.csv"
@@ -240,7 +263,7 @@ run_multi_step_test() {
       local output_path="$results_dir/producer_${i}_step_${current_step}.txt"
       
       # Run the producer test in background
-      local output_file=$(run_producer_test "$bootstrap_servers" "$config_file" "$topic_name" \
+      local output_file=$(run_producer_test "$bootstrap_servers" "$test_config_file" "$topic_name" \
         "$messages_per_producer" "1024" "-1" "$output_path" "true")
       
       # Add to the output files array
@@ -275,6 +298,58 @@ run_multi_step_test() {
     log "Test completed - no broker overload detected after all steps"
   fi
   
+  # Stop broker monitoring if it was started
+  if [ "$metrics_endpoint" != "none" ]; then
+    stop_broker_monitoring
+    
+    # Copy metrics summary to results directory if it exists
+    if [ -f "${BROKER_METRICS_DIR}/metrics_summary.txt" ]; then
+      cp "${BROKER_METRICS_DIR}/metrics_summary.txt" "${results_dir}/broker_metrics_summary.txt"
+      log "Broker metrics summary copied to: ${results_dir}/broker_metrics_summary.txt"
+    fi
+  fi
+  
+  # Generate a test summary including client config if high-load config was used
+  local summary_file="${results_dir}/test_summary.txt"
+  {
+    echo "# Load Test Summary"
+    echo "# Generated: $(date)"
+    echo ""
+    echo "## Test Configuration"
+    echo "- Bootstrap Servers: $bootstrap_servers"
+    echo "- Topic: $topic_name"
+    echo "- Steps: $num_steps"
+    echo "- Producers: $num_producers"
+    echo "- Latency Threshold: $latency_threshold ms"
+    echo "- Maximum Messages: $max_messages per producer"
+    echo "- High-Load Config: $high_load_config"
+    echo ""
+    
+    if [ "$high_load_config" = "true" ]; then
+      echo "## Client Configuration"
+      echo "\`\`\`properties"
+      cat "$test_config_file"
+      echo "\`\`\`"
+      echo ""
+    fi
+    
+    echo "## Results Summary"
+    echo "- Steps Completed: $current_step of $num_steps"
+    echo "- Broker Overloaded: $broker_overloaded"
+    if [ "$broker_overloaded" = "true" ]; then
+      echo "- Overload Detected At: Step $current_step"
+      echo "- Messages per Producer at Overload: $(calculate_messages_for_step $current_step $max_messages)"
+      echo "- Average Latency at Overload: $PRODUCER_AVG_LATENCY ms"
+      echo "- Max Latency at Overload: $PRODUCER_MAX_LATENCY ms"
+      echo "- Throughput at Overload: $PRODUCER_THROUGHPUT records/sec"
+    fi
+    
+    echo ""
+    echo "## Results by Step"
+    cat "$results_file" | sed 's/,/|/g' | sed 's/^/|/' | sed 's/$/|/'
+  } > "$summary_file"
+  
+  log "Test summary generated: $summary_file"
   return 0
 }
 

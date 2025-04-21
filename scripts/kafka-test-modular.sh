@@ -47,6 +47,8 @@ TOPIC_PARTITIONS=3
 TOPIC_REPLICATION_FACTOR=3
 KEEP_TOPIC=false
 VERBOSE=false
+METRICS_ENDPOINT="none"
+HIGH_LOAD_CONFIG=false
 
 function show_usage {
     echo "Usage: $0 --mode <validation|load> --config <client_config_file> [options]"
@@ -72,10 +74,13 @@ function show_usage {
     echo "  --steps NUM           Number of load steps to try (default: 5)"
     echo "  --latency THRESHOLD   Latency threshold in ms to identify broker overload (default: 100)"
     echo "  --max-messages NUM    Maximum number of messages per producer in the final step (default: 1000000)"
+    echo "  --metrics URL         URL to fetch broker metrics (format: http://host:port/metrics)"
+    echo "  --high-load-config    Use optimized client settings for high-load scenarios (default: false)"
     echo ""
     echo "Examples:"
     echo "  $0 --mode validation --config client.properties --topic test-topic"
     echo "  $0 --mode load --config client.properties --topic load-test --producers 4 --steps 8 --latency 150"
+    echo "  $0 --mode load --config client.properties --topic load-test --high-load-config --metrics http://kafka:8080/metrics"
     exit 1
 }
 
@@ -121,6 +126,14 @@ while [[ $# -gt 0 ]]; do
         --max-messages)
             MAX_MESSAGES="$2"
             shift 2
+            ;;
+        --metrics)
+            METRICS_ENDPOINT="$2"
+            shift 2
+            ;;
+        --high-load-config)
+            HIGH_LOAD_CONFIG=true
+            shift
             ;;
         -k|--keep-topic)
             KEEP_TOPIC=true
@@ -240,7 +253,8 @@ run_load_test() {
     
     # Run multi-step load test
     run_multi_step_test "$BOOTSTRAP_SERVERS" "$CONFIG_FILE" "$TOPIC_NAME" "$RESULTS_DIR" \
-        "$NUM_STEPS" "$NUM_PRODUCERS" "$LATENCY_THRESHOLD" "$MAX_MESSAGES" || return 1
+        "$NUM_STEPS" "$NUM_PRODUCERS" "$LATENCY_THRESHOLD" "$MAX_MESSAGES" \
+        "$METRICS_ENDPOINT" "$HIGH_LOAD_CONFIG" || return 1
     
     # Delete topic if not keeping it
     if [ "$KEEP_TOPIC" != "true" ]; then

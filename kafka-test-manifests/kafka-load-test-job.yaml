@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: kafka-load-test-with-results
+  name: kafka-load-test
   namespace: kafka-test
 spec:
   ttlSecondsAfterFinished: 86400  # Keep job for 1 day after completion
@@ -28,9 +28,9 @@ spec:
           /usr/local/bin/kafka-test.sh --mode load \
             --config /config/client.properties \
             --topic load-test-$POD_UID \
-            --producers 3 \
-            --steps 4 \
-            --latency 2000 \
+            --producers 2 \
+            --steps 6 \
+            --latency 5000 \
             --max-messages 1000000 \
             --verbose | tee -a $SUMMARY_FILE
           

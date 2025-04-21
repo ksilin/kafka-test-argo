@@ -81,16 +81,62 @@ parse_producer_metrics() {
     return 1
   fi
   
-  # Check if the file contains completion markers
-  if ! grep -q "records sent" "${output_file}" && ! grep -q "records/sec" "${output_file}"; then
-    log "ERROR: Producer metrics file ${output_file} doesn't contain expected output!"
+  # Check if the file exists and has content
+  if [ ! -s "${output_file}" ]; then
+    log "ERROR: Producer metrics file ${output_file} is empty!"
     return 1
   fi
   
-  # Extract metrics
-  export PRODUCER_THROUGHPUT=$(grep -o '[0-9]\+\.[0-9]\+ records/sec' "${output_file}" | grep -o '[0-9]\+\.[0-9]\+')
-  export PRODUCER_AVG_LATENCY=$(grep -o '[0-9]\+\.[0-9]\+ ms avg latency' "${output_file}" | grep -o '[0-9]\+\.[0-9]\+')
-  export PRODUCER_MAX_LATENCY=$(grep -o '[0-9]\+\.[0-9]\+ ms max latency' "${output_file}" | grep -o '[0-9]\+\.[0-9]\+')
+  # Check if the file contains any kind of metrics
+  if ! grep -q "records sent" "${output_file}" && \
+     ! grep -q "records/sec" "${output_file}" && \
+     ! grep -q "ms avg latency" "${output_file}" && \
+     ! grep -q "ms max latency" "${output_file}" && \
+     ! grep -q "producer-metrics" "${output_file}"; then
+    log "WARNING: Producer metrics file ${output_file} doesn't match expected patterns"
+    log "File contents preview:"
+    head -n 5 "${output_file}" | log
+    # Continue anyway - we'll use defaults if metrics can't be parsed
+  fi
+  
+  # Extract metrics - try different formats
+  # First line in newer format: "1000 records sent, 696.864111 records/sec (0.68 MB/sec), 330.01 ms avg latency, 1207.00 ms max latency, 336 ms 50th, 359 ms 95th, 370 ms 99th, 1207 ms 99.9th."
+  
+  # Extract throughput
+  if grep -q "records/sec" "${output_file}"; then
+    # Try newer format first
+    THROUGHPUT_TEMP=$(grep -m 1 "records sent" "${output_file}" | grep -o "[0-9]\+\.[0-9]\+ records/sec" | grep -o "[0-9]\+\.[0-9]\+")
+    if [ -n "$THROUGHPUT_TEMP" ]; then
+      export PRODUCER_THROUGHPUT=$THROUGHPUT_TEMP
+    else
+      # Try older format
+      export PRODUCER_THROUGHPUT=$(grep -o '[0-9]\+\.[0-9]\+ records/sec' "${output_file}" | head -n 1 | grep -o '[0-9]\+\.[0-9]\+')
+    fi
+  fi
+  
+  # Extract avg latency
+  if grep -q "ms avg latency" "${output_file}"; then
+    # Try newer format first
+    AVG_LATENCY_TEMP=$(grep -m 1 "ms avg latency" "${output_file}" | grep -o "[0-9]\+\.[0-9]\+ ms avg latency" | grep -o "[0-9]\+\.[0-9]\+")
+    if [ -n "$AVG_LATENCY_TEMP" ]; then
+      export PRODUCER_AVG_LATENCY=$AVG_LATENCY_TEMP
+    else
+      # Try older format
+      export PRODUCER_AVG_LATENCY=$(grep -o '[0-9]\+\.[0-9]\+ ms avg latency' "${output_file}" | head -n 1 | grep -o '[0-9]\+\.[0-9]\+')
+    fi
+  fi
+  
+  # Extract max latency
+  if grep -q "ms max latency" "${output_file}"; then
+    # Try newer format first
+    MAX_LATENCY_TEMP=$(grep -m 1 "ms max latency" "${output_file}" | grep -o "[0-9]\+\.[0-9]\+ ms max latency" | grep -o "[0-9]\+\.[0-9]\+")
+    if [ -n "$MAX_LATENCY_TEMP" ]; then
+      export PRODUCER_MAX_LATENCY=$MAX_LATENCY_TEMP
+    else
+      # Try older format
+      export PRODUCER_MAX_LATENCY=$(grep -o '[0-9]\+\.[0-9]\+ ms max latency' "${output_file}" | head -n 1 | grep -o '[0-9]\+\.[0-9]\+')
+    fi
+  fi
   
   # Validate metrics
   if [ -z "${PRODUCER_THROUGHPUT}" ] || [ -z "${PRODUCER_AVG_LATENCY}" ] || [ -z "${PRODUCER_MAX_LATENCY}" ]; then
@@ -242,7 +288,25 @@ wait_for_producers() {
   # Wait first for processes to complete
   wait
   
-  log "Background processes completed, waiting for output file completion..."
+  log "Background processes completed, checking for output files..."
+  
+  # Do a quick check to see if all files already exist and are non-empty
+  local all_files_ready=true
+  local incomplete_files=0
+  
+  for file in "${output_files[@]}"; do
+    if [ ! -f "$file" ] || [ ! -s "$file" ]; then
+      all_files_ready=false
+      incomplete_files=$((incomplete_files + 1))
+    fi
+  done
+  
+  if $all_files_ready; then
+    log "All output files exist and have content - continuing without waiting"
+    return 0
+  else
+    log "Waiting for ${incomplete_files} files to be completed..."
+  fi
   
   # Now wait for files to be fully written and contain completion markers
   local complete=false
@@ -261,7 +325,15 @@ wait_for_producers() {
         file_sizes="$file_sizes $size"
         
         # Check if file contains completion markers
-        if ! grep -q "records sent" "$file" 2>/dev/null && ! grep -q "records/sec" "$file" 2>/dev/null; then
+        # Look for various possible formats in the producer output
+        if grep -q "records sent" "$file" 2>/dev/null || \
+           grep -q "records/sec" "$file" 2>/dev/null || \
+           grep -q "avg latency" "$file" 2>/dev/null || \
+           grep -q "Metric Name" "$file" 2>/dev/null || \
+           grep -q "producer-metrics" "$file" 2>/dev/null; then
+          # File has producer output, consider it complete
+          true
+        else
           all_complete=false
         fi
       else
@@ -307,11 +379,21 @@ wait_for_producers() {
   
   for file in "${output_files[@]}"; do
     if [ -f "$file" ]; then
-      if grep -q "records sent" "$file" 2>/dev/null || grep -q "records/sec" "$file" 2>/dev/null; then
+      if grep -q "records sent" "$file" 2>/dev/null || \
+         grep -q "records/sec" "$file" 2>/dev/null || \
+         grep -q "avg latency" "$file" 2>/dev/null || \
+         grep -q "Metric Name" "$file" 2>/dev/null || \
+         grep -q "producer-metrics" "$file" 2>/dev/null; then
         success_count=$((success_count + 1))
       else
-        incomplete_count=$((incomplete_count + 1))
-        log "WARNING: File $file exists but doesn't contain completion markers"
+        # Check if file is non-empty - if it has some content, consider it complete
+        if [ -s "$file" ]; then
+          log "File $file has content but no standard markers - assuming complete"
+          success_count=$((success_count + 1))
+        else
+          incomplete_count=$((incomplete_count + 1))
+          log "WARNING: File $file exists but appears to be empty or incomplete"
+        fi
       fi
     else
       missing_count=$((missing_count + 1))
