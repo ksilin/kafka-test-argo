@@ -24,6 +24,9 @@ def create_topic(
 
     Returns:
         True if topic was created successfully
+
+    Raises:
+        RuntimeError: If topic creation fails
     """
     admin = AdminClient(admin_config)
 
@@ -53,8 +56,9 @@ def create_topic(
             print(f"Topic {topic} created")
             return True
         except Exception as e:
-            print(f"Failed to create topic {topic}: {e}")
-            return False
+            error_msg = f"Failed to create topic {topic}: {e}"
+            print(f"ERROR: {error_msg}")
+            raise RuntimeError(error_msg)
 
 
 def delete_topic(

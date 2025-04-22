@@ -150,6 +150,9 @@ class ScenarioRunner:
 
         Returns:
             List of ScenarioResult objects
+        
+        Raises:
+            Exception: If any scenario fails
         """
         results = []
 
@@ -171,31 +174,45 @@ class ScenarioRunner:
             )
 
         for scenario in scenarios:
-            # Run the scenario
-            result = self.run_scenario(scenario)
-            results.append(result)
+            try:
+                # Run the scenario
+                result = self.run_scenario(scenario)
+                results.append(result)
+                
+                # Check if scenario was successful (fail fast)
+                if not result.success:
+                    error_msg = f"Scenario {scenario.name} failed to produce messages"
+                    print(f"ERROR: {error_msg}")
+                    raise RuntimeError(error_msg)
 
-            # Add to summary
-            with open(summary_path, "a", newline="") as f:
-                writer = csv.writer(f)
-                writer.writerow(
-                    [
-                        scenario.name,
-                        scenario.msg_size,
-                        scenario.throughput,
-                        scenario.duration,
-                        scenario.producers,
-                        f"{result.total_throughput:.2f}",
-                        f"{result.avg_latency:.2f}",
-                        f"{result.max_latency:.2f}",
-                    ]
-                )
+                # Add to summary
+                with open(summary_path, "a", newline="") as f:
+                    writer = csv.writer(f)
+                    writer.writerow(
+                        [
+                            scenario.name,
+                            scenario.msg_size,
+                            scenario.throughput,
+                            scenario.duration,
+                            scenario.producers,
+                            f"{result.total_throughput:.2f}",
+                            f"{result.avg_latency:.2f}",
+                            f"{result.max_latency:.2f}",
+                        ]
+                    )
 
-            # Sleep between scenarios to let the system recover
-            print("Waiting 15 seconds between scenarios...")
-            time.sleep(15)
+                # Sleep between scenarios to let the system recover
+                print("Waiting 15 seconds between scenarios...")
+                time.sleep(15)
+                
+            except Exception as e:
+                print(f"ERROR: Execution stopped due to failure in scenario {scenario.name}: {e}")
+                # Generate report with the results we have so far
+                self._generate_html_report()
+                # Re-raise to stop execution
+                raise
 
-        # Generate the HTML report
+        # Generate the HTML report for successful completion
         self._generate_html_report()
 
         return results

@@ -139,21 +139,10 @@ class KafkaCliRunner:
         )  # At least 2 partitions per producer
 
         # Use Kafka CLI tool to create topic, omitting replication factor
-        topic_created = self._create_topic_cli(
+        # This will raise an exception if topic creation fails
+        self._create_topic_cli(
             topic_name=topic_name, partitions=partitions
         )
-
-        # Exit early if topic creation failed
-        if not topic_created:
-            print(f"ERROR: Failed to create topic {topic_name}, aborting scenario")
-            # Return a failed result
-            return ScenarioResult(
-                scenario=scenario,
-                producer_metrics=[],
-                total_throughput=0,
-                avg_latency=0,
-                max_latency=0,
-            )
 
         # Setup result directory
         scenario_dir = os.path.join(self.results_dir, scenario.name)
@@ -161,26 +150,10 @@ class KafkaCliRunner:
 
         try:
             # Run the producers in parallel
+            # This will raise an exception if producer tests fail
             producer_metrics = self._run_timed_producers(
                 scenario=scenario, topic_name=topic_name, scenario_dir=scenario_dir
             )
-
-            # Exit early if producer tests failed
-            if not producer_metrics:
-                print(
-                    "ERROR: No producer tests completed successfully, aborting scenario"
-                )
-                # Clean up topics unless keep_topics is set
-                if not self.keep_topics:
-                    self._delete_topic_cli(topic_name)
-                # Return a failed result
-                return ScenarioResult(
-                    scenario=scenario,
-                    producer_metrics=[],
-                    total_throughput=0,
-                    avg_latency=0,
-                    max_latency=0,
-                )
 
             # Calculate aggregated metrics
             total_throughput = sum(m.throughput for m in producer_metrics)
@@ -224,6 +197,9 @@ class KafkaCliRunner:
 
         Returns:
             List of ScenarioResult objects
+            
+        Raises:
+            Exception: If any scenario fails
         """
         results = []
 
@@ -252,8 +228,12 @@ class KafkaCliRunner:
 
                 # Check if scenario was successful
                 if not result.success:
-                    print(f"ERROR: Scenario {scenario.name} failed, stopping execution")
-                    break
+                    error_msg = f"Scenario {scenario.name} failed to produce messages"
+                    print(f"ERROR: {error_msg}")
+                    # Generate report with what we have so far
+                    self._generate_html_report()
+                    # Throw an exception to immediately fail the job
+                    raise RuntimeError(error_msg)
 
                 # Add to summary
                 with open(summary_path, "a", newline="") as f:
@@ -276,13 +256,17 @@ class KafkaCliRunner:
                 time.sleep(15)
 
             except Exception as e:
-                print(f"ERROR: Scenario {scenario.name} failed with exception: {e}")
+                print(f"ERROR: Execution stopped due to failure in scenario {scenario.name}: {e}")
                 import traceback
-
                 traceback.print_exc()
-                break
+                
+                # Generate report with results collected so far
+                self._generate_html_report()
+                
+                # Re-raise to stop execution
+                raise
 
-        # Generate the HTML report
+        # Generate the HTML report for successful completion
         self._generate_html_report()
 
         return results
@@ -349,20 +333,29 @@ class KafkaCliRunner:
 
             # Wait for all producers and collect metrics
             metrics = []
+            producer_errors = []
             for future, output_file in producer_futures:
                 try:
                     producer_metrics = future.result()
                     # Check if producer test was successful
                     if producer_metrics.record_count == 0:
-                        print(
-                            f"WARNING: Producer test produced no records: {output_file}"
-                        )
+                        error_msg = f"Producer test produced no records: {output_file}"
+                        print(f"ERROR: {error_msg}")
+                        producer_errors.append(error_msg)
                     metrics.append(producer_metrics)
                 except Exception as e:
-                    print(f"ERROR: Producer failed: {e}")
+                    error_msg = f"Producer failed: {e}"
+                    print(f"ERROR: {error_msg}")
                     import traceback
-
                     traceback.print_exc()
+                    producer_errors.append(error_msg)
+            
+            # If any producers failed, raise an exception
+            if producer_errors:
+                if not metrics:
+                    raise RuntimeError(f"All producers failed: {'; '.join(producer_errors)}")
+                elif len(metrics) < scenario.producers:
+                    raise RuntimeError(f"Some producers failed: {'; '.join(producer_errors)}")
 
         return metrics
 
@@ -595,7 +588,10 @@ class KafkaCliRunner:
             replication_factor: Replication factor (optional)
 
         Returns:
-            True if successful, False otherwise
+            True if successful
+
+        Raises:
+            RuntimeError: If topic creation fails
         """
         if replication_factor:
             print(
@@ -649,10 +645,12 @@ class KafkaCliRunner:
             return True
 
         except subprocess.CalledProcessError as e:
-            print(f"Error creating topic {topic_name}: {e}")
+            error_msg = f"Error creating topic {topic_name}: {e}"
+            print(f"ERROR: {error_msg}")
             print(f"STDOUT: {e.stdout}")
             print(f"STDERR: {e.stderr}")
-            return False
+            # Raise an exception instead of returning False
+            raise RuntimeError(error_msg)
 
     def _delete_topic_cli(self, topic_name: str) -> bool:
         """

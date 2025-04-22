@@ -2,6 +2,7 @@
 import logging
 import os
 import sys
+from typing import Any, Callable, TypeVar, cast
 
 import click
 
@@ -9,6 +10,30 @@ from scenarios.cli_runner import KafkaCliRunner
 
 # Import both runner implementations
 from scenarios.python_runner import ScenarioRunner as PythonRunner
+
+# Type variable for generic return type
+T = TypeVar('T')
+
+def run_critical(func: Callable[..., T], *args: Any, **kwargs: Any) -> T:
+    """Run a function and exit immediately if it fails.
+    
+    Args:
+        func: Function to run
+        *args: Positional arguments to pass to the function
+        **kwargs: Keyword arguments to pass to the function
+        
+    Returns:
+        The result of the function call
+        
+    Raises:
+        SystemExit: If the function raises an exception
+    """
+    try:
+        result = func(*args, **kwargs)
+        return result
+    except Exception as e:
+        logging.error(f"Critical operation failed: {e}")
+        sys.exit(1)
 
 
 def setup_logging(verbose: bool) -> None:
@@ -71,14 +96,17 @@ def run_python(
     scenario_list = runner.load_scenarios(scenarios)
     click.echo(f"Found {len(scenario_list)} scenarios")
 
-    # Run scenarios
+    # Run scenarios with fail-fast behavior
     click.echo("Starting scenario tests using Python client...")
-    results = runner.run_scenarios(scenario_list)
+    results = run_critical(runner.run_scenarios, scenario_list)
 
     # Print summary
     click.echo("\nTest Summary:")
+    failed_scenarios = 0
     for result in results:
         status = "PASS" if result.success else "FAIL"
+        if not result.success:
+            failed_scenarios += 1
         click.echo(
             f"{result.scenario.name}: {status} - "
             f"Throughput: {result.total_throughput:.2f} records/sec "
@@ -88,6 +116,10 @@ def run_python(
 
     click.echo(f"\nResults saved to {results_dir}")
     click.echo(f"HTML report: {os.path.join(results_dir, 'report.html')}")
+    
+    # Exit with error if any scenario failed (should never happen with fail-fast enabled)
+    if failed_scenarios > 0:
+        sys.exit(1)
 
 
 @cli.command(name="run-cli")
@@ -133,14 +165,17 @@ def run_cli(
     scenario_list = runner.load_scenarios(scenarios)
     click.echo(f"Found {len(scenario_list)} scenarios")
 
-    # Run scenarios
+    # Run scenarios with fail-fast behavior
     click.echo("Starting scenario tests using Kafka CLI tools...")
-    results = runner.run_scenarios(scenario_list)
+    results = run_critical(runner.run_scenarios, scenario_list)
 
     # Print summary
     click.echo("\nTest Summary:")
+    failed_scenarios = 0
     for result in results:
         status = "PASS" if result.success else "FAIL"
+        if not result.success:
+            failed_scenarios += 1
         click.echo(
             f"{result.scenario.name}: {status} - "
             f"Throughput: {result.total_throughput:.2f} records/sec "
@@ -150,6 +185,10 @@ def run_cli(
 
     click.echo(f"\nResults saved to {results_dir}")
     click.echo(f"HTML report: {os.path.join(results_dir, 'report.html')}")
+    
+    # Exit with error if any scenario failed (should never happen with fail-fast enabled)
+    if failed_scenarios > 0:
+        sys.exit(1)
 
 
 # Default command (for backward compatibility)
@@ -288,9 +327,9 @@ def run_single_cli(
             keep_topics=keep_topics,
         )
 
-        # Run scenario
+        # Run scenario with fail-fast behavior
         click.echo(f"Running scenario using CLI tools: {scenario_obj.name}")
-        result = runner.run_scenario(scenario_obj)
+        result = run_critical(runner.run_scenario, scenario_obj)
 
         # Print summary
         status = "PASS" if result.success else "FAIL"
@@ -353,9 +392,9 @@ def run_single_python(
             keep_topics=keep_topics,
         )
 
-        # Run scenario
+        # Run scenario with fail-fast behavior
         click.echo(f"Running scenario using Python client: {scenario_obj.name}")
-        result = runner.run_scenario(scenario_obj)
+        result = run_critical(runner.run_scenario, scenario_obj)
 
         # Print summary
         status = "PASS" if result.success else "FAIL"
@@ -432,9 +471,9 @@ def run_single(
             keep_topics=keep_topics,
         )
 
-        # Run scenario
+        # Run scenario with fail-fast behavior
         print(f"Running scenario: {scenario_obj.name}")
-        result = runner.run_scenario(scenario_obj)
+        result = run_critical(runner.run_scenario, scenario_obj)
 
         # Print summary
         status = "PASS" if result.success else "FAIL"
