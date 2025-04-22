@@ -1,0 +1,24 @@
+version: "3.7"
+services:
+  kafka:
+    image: confluentinc/confluent-local:7.9.0
+    hostname: kafka
+    container_name: kafka-autotest
+    ports:
+      - "9092:9092"
+      - "19092:19092"
+      - "39092:39092"
+      - "49092:49092"
+      - "59092:59092"
+      - "19093:19093"
+    environment:
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: BROKER:PLAINTEXT,CONTROLLER:PLAINTEXT,SASL_DOCKER:SASL_PLAINTEXT,PLAIN_HOST:PLAINTEXT,PLAIN_HOST_DOCKER:PLAINTEXT,SASL_HOST_DOCKER:SASL_PLAINTEXT, SASL_HOST:SASL_PLAINTEXT
+      KAFKA_LISTENERS: BROKER://:9092, CONTROLLER://:9093,SASL_DOCKER://:19092,PLAIN_HOST://:39092,PLAIN_HOST_DOCKER://:49092,SASL_HOST_DOCKER://:59092, SASL_HOST://:19093
+      KAFKA_ADVERTISED_LISTENERS: BROKER://kafka:9092,SASL_DOCKER://kafka:19092,PLAIN_HOST://localhost:39092,PLAIN_HOST_DOCKER://host.docker.internal:49092,SASL_HOST_DOCKER://host.docker.internal:59092, SASL_HOST://localhost:19093
+      KAFKA_SASL_ENABLED_MECHANISMS: PLAIN
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_INTER_BROKER_LISTENER_NAME: BROKER
+      KAFKA_OPTS: "-Djava.security.auth.login.config=/etc/kafka/kafka_jaas.conf"
+    volumes:
+       - ./kafka_jaas.conf:/etc/kafka/kafka_jaas.conf

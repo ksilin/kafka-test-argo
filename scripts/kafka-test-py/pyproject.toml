@@ -1,0 +1,47 @@
+[project]
+name = "kafka_test_py"
+version = "0.1.0"
+description = "Kafka scenario-based testing tool in Python"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "confluent-kafka",
+    "pyyaml",
+    "click",
+    "pytest",
+    "pytest-cov",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "black",
+    "isort",
+    "flake8",
+    "mypy",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project.scripts]
+kafka-scenario-test = "cli:main"
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+# Add this to ignore package name validation completely
+ignore_missing_imports = true

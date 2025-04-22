@@ -1,0 +1,31 @@
+FROM confluentinc/cp-kafka:7.9.0
+
+# We'll use the system Python 3 that comes with the image
+USER root
+
+# Set Python environment
+ENV PYTHONPATH="/app"
+
+# Set up app directory
+WORKDIR /app
+
+# Copy application code
+COPY scripts/kafka-test-py /app/
+
+# Create a README.md file if it doesn't exist (needed for installation)
+RUN touch README.md
+
+# Install Python dependencies directly with pip
+RUN python3 -m pip install --no-cache-dir --upgrade pip && \
+    python3 -m pip install --no-cache-dir confluent-kafka pyyaml click pytest pytest-cov
+
+# Create necessary directories
+RUN mkdir -p /app/results /app/config && \
+    chown -R appuser:appuser /app
+
+# Switch back to appuser for better security
+USER appuser
+
+# Set the entry point
+ENTRYPOINT ["python3", "-m", "cli"]
+CMD ["--help"]

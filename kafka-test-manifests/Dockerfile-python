@@ -1,0 +1,34 @@
+FROM confluentinc/cp-kafka:7.9.0
+
+USER root
+# Install Python 3.11 using miniconda (lighter than full build)
+RUN yum update -y && \
+    yum install -y wget && \
+    wget https://repo.anaconda.com/miniconda/Miniconda3-py311_23.11.0-2-Linux-x86_64.sh -O /tmp/miniconda.sh && \
+    bash /tmp/miniconda.sh -b -p /opt/conda && \
+    rm /tmp/miniconda.sh && \
+    /opt/conda/bin/conda clean -a -y && \
+    yum clean all
+
+# Add conda to path
+ENV PATH="/opt/conda/bin:${PATH}"
+
+# Install Python dependencies
+COPY scripts/kafka-test-py/pyproject.toml /app/pyproject.toml
+WORKDIR /app
+
+# Install the app in development mode
+RUN pip3 install --upgrade pip && \
+    pip3 install ".[dev]" --no-cache-dir
+
+# Copy the application code
+COPY scripts/kafka-test-py /app
+
+# Create directories for results and configs
+RUN mkdir -p /app/results /app/config
+
+USER appuser
+
+# Set the entry point
+ENTRYPOINT ["python3", "-m", "cli"]
+CMD ["--help"]
