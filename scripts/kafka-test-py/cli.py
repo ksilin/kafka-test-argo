@@ -2,7 +2,6 @@
 import logging
 import os
 import sys
-from pathlib import Path
 
 import click
 
@@ -295,7 +294,7 @@ def run_single_cli(
 
         # Print summary
         status = "PASS" if result.success else "FAIL"
-        click.echo(f"\nTest Summary:")
+        click.echo("\nTest Summary:")
         click.echo(
             f"{result.scenario.name}: {status} - "
             f"Throughput: {result.total_throughput:.2f} records/sec "
@@ -360,7 +359,7 @@ def run_single_python(
 
         # Print summary
         status = "PASS" if result.success else "FAIL"
-        click.echo(f"\nTest Summary:")
+        click.echo("\nTest Summary:")
         click.echo(
             f"{result.scenario.name}: {status} - "
             f"Throughput: {result.total_throughput:.2f} records/sec "
@@ -439,7 +438,7 @@ def run_single(
 
         # Print summary
         status = "PASS" if result.success else "FAIL"
-        print(f"\nTest Summary:")
+        print("\nTest Summary:")
         print(
             f"{result.scenario.name}: {status} - "
             f"Throughput: {result.total_throughput:.2f} records/sec "

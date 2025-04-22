@@ -1,10 +1,8 @@
 import concurrent.futures
 import csv
 import os
-import threading
 import time
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from confluent_kafka import Consumer, KafkaException, Producer
 
@@ -372,7 +370,7 @@ class ScenarioRunner:
 
         # Save the final metrics to the output file
         with open(output_file, "a") as f:
-            f.write(f"\nTest completed\n")
+            f.write("\nTest completed\n")
             f.write(f"Records sent: {message_count}\n")
             f.write(f"Throughput: {throughput_achieved:.2f} records/sec\n")
             f.write(f"Average latency: {avg_latency:.2f} ms\n")

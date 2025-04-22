@@ -1,15 +1,12 @@
 import concurrent.futures
 import csv
-import json
 import os
 import subprocess
 import time
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from core.models import KafkaScenario, ProducerMetrics, ScenarioResult
 from utils.config import get_bootstrap_servers, parse_client_config
-from utils.topic import create_topic, delete_topic
 
 
 class KafkaCliRunner:
@@ -72,7 +69,7 @@ class KafkaCliRunner:
             # Count unique broker IDs
             broker_count = 0
             for line in lines:
-                if "broker" in line.lower() and ":" in line:
+                if "id:" in line:
                     broker_count += 1
 
             return max(1, broker_count)
