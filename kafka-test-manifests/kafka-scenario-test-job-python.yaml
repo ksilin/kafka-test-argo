@@ -1,0 +1,83 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-scenario-test-python
+  namespace: kafka-test
+  labels:
+    app: kafka-pytest
+    tier: test
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: kafka-scenario-test
+        tier: test
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: kafka-scenario-test
+        image: ghcr.io/ksilin/kafka-pytest:0.0.1
+        imagePullPolicy: Always
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            python3 -m cli run-cli --config /app/config/client.properties --scenarios /app/scenario/scenarios.txt --results-dir /app/results --topic-base kafka-scenario-test && echo "Tests complete, keeping pod alive for inspection" && sleep 3600
+        #args:
+        #- "run-cli"   # Use Kafka CLI tools (can be changed to run-python to use Python client)
+        #- "--config"
+        #- "/app/config/client.properties"
+        #- "--scenarios"
+        #- "/app/scenario/scenarios.txt"
+        #- "--results-dir"
+        #- "/app/results"
+        #- "--topic-base"
+        #- "kafka-scenario-test"
+        #- '&& echo "Tests complete, keeping pod alive for inspection"'
+        #- '&& sleep 3600'
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config
+        - name: scenario-volume
+          mountPath: /app/scenario
+        - name: truststore-volume
+          mountPath: /certs
+        - name: results-volume
+          mountPath: /app/results
+      volumes:
+      - name: config-volume
+        configMap:
+          name: kafka-client-properties
+      - name: truststore-volume
+        secret:
+          secretName: kafka-truststore
+      - name: scenario-volume
+        configMap:
+          name: kafka-scenario-config2
+      - name: results-volume
+        emptyDir: {}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-scenario-config2
+  namespace: kafka-test
+data:
+  scenarios.txt: |
+    # Kafka Performance Test Scenarios
+    # Format: name,msg_size,throughput,duration,producers
+    
+    # Small messages (1 KB)
+    small-unlimited,1024,-1,60,1         # Unlimited throughput, 1 producer
+    small-throttled,1024,10000,60,1      # 10K records/sec, 1 producer
+    small-parallel,1024,5000,60,4        # 5K records/sec per producer, 4 producers
+    
+    # Medium messages (10 KB)
+    medium-unlimited,10024,-1,60,1       # Unlimited throughput, 1 producer
+    medium-throttled,10024,5000,60,1     # 5K records/sec, 1 producer
+    medium-parallel,10024,2500,60,4      # 2.5K records/sec per producer, 4 producers
+
+    # Larger messages (100 KB)
+    medium-unlimited,100024,-1,60,1       # Unlimited throughput, 1 producer
+    medium-throttled,100024,1000,60,1     # 1K records/sec, 1 producer
+    medium-parallel,100024,500,60,4      # 500 records/sec per producer, 4 producers
