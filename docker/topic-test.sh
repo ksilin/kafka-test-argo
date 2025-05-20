@@ -14,7 +14,6 @@ function show_usage {
 CONFIG_FILE=""
 TOPIC_NAME=""
 
-
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -c|--config)
@@ -36,7 +35,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Check for required parameters
-if [[ -z "$CONFIG_FILE" || -z "$TOPIC_NAME" ]]; then
+if [[ -z "$CONFIG_FILE" ]]; then
     echo "Error: Missing required parameters."
     show_usage
 fi
@@ -45,7 +44,7 @@ echo "Client options: $CONFIG_FILE"
 cat $CONFIG_FILE
 echo ""
 
-TOPIC_NAME=${TOPIC_NAME:-"validation-test-topic"}
+TOPIC_NAME=${TOPIC_NAME:-"test-topic-$(date +%s)"}
 NUM_MESSAGES=${NUM_MESSAGES:-10000}
 MESSAGE_SIZE=${MESSAGE_SIZE:-1024}
 TOPIC_PARTITIONS=${TOPIC_PARTITIONS:-3}
@@ -97,8 +96,25 @@ create_topic() {
   log "Topic creation took ${TOPIC_CREATE_TIME}ms"
 }
 
+run_low_throughput_producer_test() {
+  log "This test measures latency under little load"
+  log "This test should run for about 30 seconds"
+
+  kafka-producer-perf-test \
+    --topic ${TOPIC_NAME} \
+    --num-records 3000 \
+    --record-size 1000 \
+    --throughput 100 \
+    --producer.config "$CONFIG_FILE" 
+
+  # TODO: write the output to a file and parse the latency into a variable, which can later be printed 
+}
+
+
 run_producer_test() {
   log "Running producer performance test with ${NUM_MESSAGES} messages of size ${MESSAGE_SIZE} bytes"
+  log "This test is for measuring max throughput. "
+  # TODO: we may want to run this test from more than a single instance. 
   
   kafka-producer-perf-test \
     --topic ${TOPIC_NAME} \
@@ -111,6 +127,8 @@ run_producer_test() {
     log "ERROR: Producer test failed!"
     return 1
   fi
+
+  cat /tmp/producer-metrics.txt
   
   log "Producer test completed"
   
@@ -139,7 +157,6 @@ run_consumer_test() {
   fi
   
   log "Consumer test completed"
-  
   # Extract key metrics from output - skip the header line and extract from the data line
   export CONSUMER_THROUGHPUT=$(tail -n 1 /tmp/consumer-metrics.txt | cut -d',' -f6 | tr -d ' ')
   export CONSUMER_MB_SEC=$(tail -n 1 /tmp/consumer-metrics.txt | cut -d',' -f4 | tr -d ' ')
@@ -172,6 +189,7 @@ main() {
   
   # Run tests
   create_topic || return 1
+  run_low_throughput_producer_test || return 1
   run_producer_test || return 1
   run_consumer_test || return 1
   delete_topic || return 1

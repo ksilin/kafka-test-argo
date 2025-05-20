@@ -30,8 +30,5 @@ spec:
       - name: config-volume
         configMap:
           name: kafka-client-properties
-      - name: truststore-volume
-        secret:
-          secretName: kafka-truststore
       restartPolicy: Never
   backoffLimit: 2
