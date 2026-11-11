@@ -24,8 +24,3 @@ kafka-producer-perf-test --num-records 1000 --record-size 100 --throughput -1 --
 ```
 
 
-### ArgoCD on GKE password
-
-```
-LlQHcV54zUsHHjGm
-```
